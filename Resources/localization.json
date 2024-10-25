@@ -1,0 +1,88 @@
+﻿[
+  /* Login - Start */
+  {
+    "Key": "LOGIN00001",
+    "Values": {
+      "en-US": " Username is Required",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "LOGIN00002",
+    "Values": {
+      "en-US": " Password is Required",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "LOGIN00003",
+    "Values": {
+      "en-US": " Invalid username or password",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  /* Login - End */
+
+  /* Signup - Start */
+  {
+    "Key": "SIGNUP00001",
+    "Values": {
+      "en-US": " Username is Required",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "SIGNUP00002",
+    "Values": {
+      "en-US": " Password is Required",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "SIGNUP00003",
+    "Values": {
+      "en-US": " Email is Required",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "SIGNUP00004",
+    "Values": {
+      "en-US": " PhoneNumber is Required",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "SIGNUP00005",
+    "Values": {
+      "en-US": " Email is invalid",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "SIGNUP00006",
+    "Values": {
+      "en-US": " Username already exists",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  },
+  {
+    "Key": "SIGNUP00007",
+    "Values": {
+      "en-US": " Name is Required",
+      "fr-FR": " El código de calificación es obligatorio",
+      "ar-AR": " مطلوب رمز التقدير"
+    }
+  }
+  /* Signup - End */
+
+]

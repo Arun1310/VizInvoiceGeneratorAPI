@@ -15,6 +15,7 @@ namespace VizInvoiceGeneratorWebAPI
 
         public IMongoCollection<Invoice> Invoices => _database.GetCollection<Invoice>("invoices");
         public IMongoCollection<InvoiceTemplate> InvoiceTemplate => _database.GetCollection<InvoiceTemplate>("invoice_template");
+        public IMongoCollection<User> Users => _database.GetCollection<User>("users");
     }
 
 }

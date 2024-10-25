@@ -50,13 +50,6 @@ namespace VizInvoiceGeneratorWebAPI.Services
             await _invoices.InsertOneAsync(invoice);
         }
 
-        //public async Task UpdateInvoiceState(string id, string state)
-        //{
-        //    var filter = Builders<Invoice>.Filter.Eq("_id", id);
-        //    var update = Builders<Invoice>.Update.Set("state", state);
-        //    await _invoices.UpdateOneAsync(filter, update);
-        //}
-
         public async Task<bool> UpdateInvoice(string id, Invoice updatedInvoice)
         {
             var result = await _invoices.ReplaceOneAsync(i => i.Id == id, updatedInvoice);
@@ -124,125 +117,6 @@ namespace VizInvoiceGeneratorWebAPI.Services
                 var result = await UpdateInvoice(id, invoice);
 
                 return invoice;
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
-
-        }
-
-        public async Task<InvoiceResult> AnalyzePreBuiltInvoiceAsync(IFormFile file)
-        {
-            try
-            {
-                using (var stream = file.OpenReadStream())
-                {
-                    var credential = new AzureKeyCredential(apiKey);
-                    var client = new DocumentAnalysisClient(new Uri(endpoint), credential);
-
-                    // Analyze the invoice
-                    AnalyzeDocumentOperation operation = await client.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-invoice", stream);
-                    var result = operation.Value;
-
-                    var invoiceResult = new InvoiceResult();
-
-
-                    if (result.Documents.Count > 0)
-                    {
-                        //invoiceResult.RawResult = result;
-                        AnalyzedDocument document = result.Documents[0];
-
-                        // VendorName
-                        if (document.Fields.TryGetValue("VendorName", out DocumentField? vendorNameField) && vendorNameField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.VendorName = vendorNameField.Value.AsString();
-                            invoiceResult.VendorNameConfidence = vendorNameField.Confidence;
-                        }
-
-                        // CustomerName
-                        if (document.Fields.TryGetValue("CustomerName", out DocumentField? customerNameField) && customerNameField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.CustomerName = customerNameField.Value.AsString();
-                            invoiceResult.CustomerNameConfidence = customerNameField.Confidence;
-                        }
-
-                        // Items
-                        if (document.Fields.TryGetValue("Items", out DocumentField? itemsField) && itemsField.FieldType == DocumentFieldType.List)
-                        {
-                            foreach (DocumentField itemField in itemsField.Value.AsList())
-                            {
-                                if (itemField.FieldType == DocumentFieldType.Dictionary)
-                                {
-                                    var invoiceItem = new InvoiceItem();
-                                    IReadOnlyDictionary<string, DocumentField> itemFields = itemField.Value.AsDictionary();
-
-                                    if (itemFields.TryGetValue("Description", out DocumentField? itemDescriptionField) && itemDescriptionField.FieldType == DocumentFieldType.String)
-                                    {
-                                        invoiceItem.Description = itemDescriptionField.Value.AsString();
-                                    }
-
-                                    if (itemFields.TryGetValue("ProductCode", out DocumentField? itemProductCodeField) && itemProductCodeField.FieldType == DocumentFieldType.String)
-                                    {
-                                        invoiceItem.ProductCode = itemProductCodeField.Value.AsString();
-                                    }
-
-                                    if (itemFields.TryGetValue("Quantity", out DocumentField? itemQuantityField) && itemQuantityField.FieldType == DocumentFieldType.Double)
-                                    {
-                                        // invoiceItem.Quantity = itemQuantityField.Value.AsDouble();
-                                    }
-
-                                    if (itemFields.TryGetValue("Unit", out DocumentField? itemUnitField) && itemUnitField.FieldType == DocumentFieldType.String)
-                                    {
-                                        invoiceItem.Unit = itemUnitField.Value.AsString();
-                                    }
-
-                                    //if (itemFields.TryGetValue("UnitPrice", out DocumentField? itemUnitPriceField) && itemUnitPriceField.FieldType == DocumentFieldType.String)
-                                    //{
-                                    //    var itemUnitPrice = itemUnitPriceField.Value.AsCurrency();
-                                    //    invoiceItem.UnitPrice = itemUnitPrice.Amount;
-                                    //}
-
-                                    //if (itemFields.TryGetValue("Amount", out DocumentField? itemAmountField) && itemAmountField.FieldType == DocumentFieldType.String)
-                                    //{
-                                    //    var itemAmount = itemAmountField.Value.AsCurrency();
-                                    //    invoiceItem.Amount = itemAmount.Amount;
-                                    //    invoiceItem.Confidence = itemAmountField.Confidence;
-                                    //}
-
-                                    invoiceResult.Items.Add(invoiceItem);
-                                }
-                            }
-                        }
-
-                        // SubTotal
-                        if (document.Fields.TryGetValue("SubTotal", out DocumentField? subTotalField) && subTotalField.FieldType == DocumentFieldType.Currency)
-                        {
-                            var subTotal = subTotalField.Value.AsCurrency();
-                            invoiceResult.SubTotal = subTotal.Amount;
-                            invoiceResult.SubTotalConfidence = subTotalField.Confidence;
-                        }
-
-                        // TotalTax
-                        if (document.Fields.TryGetValue("TotalTax", out DocumentField? totalTaxField) && totalTaxField.FieldType == DocumentFieldType.Currency)
-                        {
-                            var totalTax = totalTaxField.Value.AsCurrency();
-                            invoiceResult.TotalTax = totalTax.Amount;
-                            invoiceResult.TotalTaxConfidence = totalTaxField.Confidence;
-                        }
-
-                        // InvoiceTotal
-                        if (document.Fields.TryGetValue("InvoiceTotal", out DocumentField? invoiceTotalField) && invoiceTotalField.FieldType == DocumentFieldType.Currency)
-                        {
-                            var invoiceTotal = invoiceTotalField.Value.AsCurrency();
-                            invoiceResult.InvoiceTotal = invoiceTotal.Amount;
-                            invoiceResult.InvoiceTotalConfidence = invoiceTotalField.Confidence;
-                        }
-                    }
-
-                    return invoiceResult;
-                }
-
             }
             catch (Exception ex)
             {
