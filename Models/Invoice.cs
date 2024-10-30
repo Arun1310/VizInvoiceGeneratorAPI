@@ -11,13 +11,10 @@ namespace VizInvoiceGeneratorWebAPI.Models
         public string? FileName { get; set; }
         public string? FileUrl { get; set; }
         public DateTime UploadDate { get; set; }
-
         public int State { get; set; }
+        //public CustomInvoiceResult? InvoiceResult { get; set; }
 
-        // public OCRResult? OCRResult { get; set; }
-        public CustomInvoiceResult? InvoiceResult { get; set; }
-
-        public List<AttributeMapping>? AttributeMappings { get; set; }
+        public List<Attributes> Attributes { get; set; }
 
         public string? CustomGeneratedInvoiceUrl { get; set; }
     }
@@ -36,10 +33,22 @@ namespace VizInvoiceGeneratorWebAPI.Models
         public InvoiceResult InvoiceResult { get; set; }
     }
 
-    public class AttributeMapping
+    public class Attributes
     {
         public string? AttributeName { get; set; }
-        public string? MappedValue { get; set; }
+        public string? AttributeValue { get; set; }
+        public List<PositionData>? Position { get; set; }
+        public bool IsAttributeMapped { get; set; }
+        public List<Attributes> Children { get; set; } = new();
+    }
+
+    public class PositionData
+    {
+        public int PageIndex { get; set; }
+        public double? Height { get; set; }
+        public double? Width { get; set; }
+        public double? Left { get; set; }
+        public double? Top { get; set; }
     }
 
     public class InvoiceTemplate

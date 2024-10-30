@@ -70,7 +70,8 @@ namespace VizInvoiceGeneratorWebAPI.Services
 
                 var uploadedFile = UploadAttachmentToBlob(fileDetail);
 
-                var invoiceResult = await AnalyzeInvoiceAsync(file);
+                // Get the mapped attributes instead of a specific CustomInvoiceResult
+                var attributes = await AnalyzeInvoiceAsync(file);
 
                 var invoice = new Invoice
                 {
@@ -78,13 +79,10 @@ namespace VizInvoiceGeneratorWebAPI.Services
                     FileUrl = uploadedFile.FilePath,
                     UploadDate = DateTime.UtcNow,
                     State = 1,
-                    InvoiceResult = invoiceResult
-                    //OCRResult = new OCRResult
-                    //{
-                    //    // ExtractedData = invoiceResult,
-                    //    InvoiceResult = invoiceResult
-                    //},
+                    Attributes = attributes, // Store the mapped attributes list here
+                    CustomGeneratedInvoiceUrl = null
                 };
+
                 await _invoices.InsertOneAsync(invoice);
                 return invoice;
             }
@@ -92,8 +90,8 @@ namespace VizInvoiceGeneratorWebAPI.Services
             {
                 throw;
             }
-
         }
+
 
         public async Task<Invoice> UploadCustomInvoiceAsync(string id, IFormFile file)
         {
@@ -125,7 +123,7 @@ namespace VizInvoiceGeneratorWebAPI.Services
 
         }
 
-        public async Task<CustomInvoiceResult> AnalyzeInvoiceAsync(IFormFile file)
+        public async Task<List<Attributes>> AnalyzeInvoiceAsync(IFormFile file)
         {
             try
             {
@@ -138,173 +136,140 @@ namespace VizInvoiceGeneratorWebAPI.Services
                     AnalyzeDocumentOperation operation = await client.AnalyzeDocumentAsync(WaitUntil.Completed, "custom-invoice", stream);
                     var result = operation.Value;
 
-                    var invoiceResult = new CustomInvoiceResult();
+                    var attributesList = new List<Attributes>();
 
                     if (result.Documents.Count > 0)
                     {
                         AnalyzedDocument document = result.Documents[0];
 
-                        // VendorName
-                        if (document.Fields.TryGetValue("VendorName", out DocumentField? vendorNameField) && vendorNameField.FieldType == DocumentFieldType.String)
+                        // Iterate over all fields in the document only once
+                        foreach (var field in document.Fields)
                         {
-                            invoiceResult.VendorName = vendorNameField.Value.AsString();
-                        }
-
-                        // VendorTaxId
-                        if (document.Fields.TryGetValue("VendorTaxId", out DocumentField? vendorTaxIdField) && vendorTaxIdField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.VendorTaxId = vendorTaxIdField.Value.AsString();
-                        }
-
-                        // VendorAddress
-                        if (document.Fields.TryGetValue("VendorAddress", out DocumentField? vendorAddressField) && vendorAddressField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.VendorAddress = vendorAddressField.Value.AsString();
-                        }
-
-                        // InvoiceId
-                        if (document.Fields.TryGetValue("InvoiceId", out DocumentField? invoiceIdField) && invoiceIdField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.InvoiceId = invoiceIdField.Value.AsString();
-                        }
-
-                        // InvoiceDate
-                        if (document.Fields.TryGetValue("InvoiceDate", out DocumentField? invoiceDateField) && invoiceDateField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.InvoiceDate = invoiceDateField.Value.AsString();
-                        }
-
-                        // PurchaseOrder
-                        if (document.Fields.TryGetValue("PurchaseOrder", out DocumentField? purchaseOrderField) && purchaseOrderField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.PurchaseOrder = purchaseOrderField.Value.AsString();
-                        }
-
-                        // PurchaseOrderDate
-                        if (document.Fields.TryGetValue("PurchaseOrderDate", out DocumentField? purchaseOrderDateField) && purchaseOrderDateField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.PurchaseOrderDate = purchaseOrderDateField.Value.AsString();
-                        }
-
-                        // ShippingAddressRecipient
-                        if (document.Fields.TryGetValue("ShippingAddressRecipient", out DocumentField? shippingAddressRecipientField) && shippingAddressRecipientField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.ShippingAddressRecipient = shippingAddressRecipientField.Value.AsString();
-                        }
-
-                        // ShippingAddress
-                        if (document.Fields.TryGetValue("ShippingAddress", out DocumentField? shippingAddressField) && shippingAddressField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.ShippingAddress = shippingAddressField.Value.AsString();
-                        }
-
-                        // CustomerAddressRecipient
-                        if (document.Fields.TryGetValue("CustomerAddressRecipient", out DocumentField? customerAddressRecipientField) && customerAddressRecipientField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.CustomerAddressRecipient = customerAddressRecipientField.Value.AsString();
-                        }
-
-                        // CustomerAddress
-                        if (document.Fields.TryGetValue("CustomerAddress", out DocumentField? customerAddressField) && customerAddressField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.CustomerAddress = customerAddressField.Value.AsString();
-                        }
-
-                        // VendorAddressRecipient
-                        if (document.Fields.TryGetValue("VendorAddressRecipient", out DocumentField? vendorAddressRecipientField) && vendorAddressRecipientField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.VendorAddressRecipient = vendorAddressRecipientField.Value.AsString();
-                        }
-
-                        // InvoiceTotal
-                        if (document.Fields.TryGetValue("InvoiceTotal", out DocumentField? invoiceTotalField) && invoiceTotalField.FieldType == DocumentFieldType.String)
-                        {
-                            var invoiceTotal = invoiceTotalField.Value.AsString();
-                            invoiceResult.InvoiceTotal = invoiceTotal;
-                        }
-
-                        // InvoiceTotalInWords
-                        if (document.Fields.TryGetValue("InvoiceTotalInWords", out DocumentField? invoiceTotalInWordsField) && invoiceTotalInWordsField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.InvoiceTotalInWords = invoiceTotalInWordsField.Value.AsString();
-                        }
-
-                        // BillingAddress
-                        if (document.Fields.TryGetValue("BillingAddress", out DocumentField? billingAddressField) && billingAddressField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.BillingAddress = billingAddressField.Value.AsString();
-                        }
-
-                        // BillingAddressRecipient
-                        if (document.Fields.TryGetValue("BillingAddressRecipient", out DocumentField? billingAddressRecipientField) && billingAddressRecipientField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.BillingAddressRecipient = billingAddressRecipientField.Value.AsString();
-                        }
-
-                        // CustomerTaxId
-                        if (document.Fields.TryGetValue("CustomerTaxId", out DocumentField? customerTaxIdField) && customerTaxIdField.FieldType == DocumentFieldType.String)
-                        {
-                            invoiceResult.CustomerTaxId = customerTaxIdField.Value.AsString();
-                        }
-
-                        // Items
-                        if (document.Fields.TryGetValue("Items", out DocumentField? itemsField) && itemsField.FieldType == DocumentFieldType.List)
-                        {
-                            foreach (DocumentField itemField in itemsField.Value.AsList())
+                            // For each field, check if there are bounding regions and process them
+                            List<PositionData> positionDataList = new();
+                            if (field.Value.BoundingRegions != null)
                             {
-                                if (itemField.FieldType == DocumentFieldType.Dictionary)
+                                foreach (var region in field.Value.BoundingRegions)
                                 {
-                                    var invoiceItem = new InvoiceItem();
-                                    IReadOnlyDictionary<string, DocumentField> itemFields = itemField.Value.AsDictionary();
-
-                                    if (itemFields.TryGetValue("Description", out DocumentField? itemDescriptionField) && itemDescriptionField.FieldType == DocumentFieldType.String)
+                                    // Get the specific page dimensions for the bounding region's page number
+                                    var page = result.Pages.FirstOrDefault(p => p.PageNumber == region.PageNumber);
+                                    if (page != null)
                                     {
-                                        invoiceItem.Description = itemDescriptionField.Value.AsString();
-                                    }
+                                        var pageWidth = page.Width;
+                                        var pageHeight = page.Height;
 
-                                    if (itemFields.TryGetValue("ProductCode", out DocumentField? itemProductCodeField) && itemProductCodeField.FieldType == DocumentFieldType.String)
-                                    {
-                                        invoiceItem.ProductCode = itemProductCodeField.Value.AsString();
+                                        positionDataList.Add(new PositionData
+                                        {
+                                            PageIndex = region.PageNumber - 1,
+                                            Left = region.BoundingPolygon.Min(point => point.X) / pageWidth * 100,
+                                            Top = region.BoundingPolygon.Min(point => point.Y) / pageHeight * 100,
+                                            Width = (region.BoundingPolygon.Max(point => point.X) - region.BoundingPolygon.Min(point => point.X)) / pageWidth * 100,
+                                            Height = (region.BoundingPolygon.Max(point => point.Y) - region.BoundingPolygon.Min(point => point.Y)) / pageHeight * 100
+                                        });
                                     }
-
-                                    if (itemFields.TryGetValue("Quantity", out DocumentField? itemQuantityField) && itemQuantityField.FieldType == DocumentFieldType.String)
-                                    {
-                                        invoiceItem.Quantity = itemQuantityField.Value.AsString();
-                                    }
-
-                                    if (itemFields.TryGetValue("Unit", out DocumentField? itemUnitField) && itemUnitField.FieldType == DocumentFieldType.String)
-                                    {
-                                        invoiceItem.Unit = itemUnitField.Value.AsString();
-                                    }
-
-                                    if (itemFields.TryGetValue("UnitPrice", out DocumentField? itemUnitPriceField) && itemUnitPriceField.FieldType == DocumentFieldType.String)
-                                    {
-                                        var itemUnitPrice = itemUnitPriceField.Value.AsString();
-                                        invoiceItem.UnitPrice = itemUnitPrice;
-                                    }
-
-                                    if (itemFields.TryGetValue("Amount", out DocumentField? itemAmountField) && itemAmountField.FieldType == DocumentFieldType.String)
-                                    {
-                                        var itemAmount = itemAmountField.Value.AsString();
-                                        invoiceItem.Amount = itemAmount;
-                                    }
-
-                                    invoiceResult.Items.Add(invoiceItem);
                                 }
                             }
+
+                            var attribute = new Attributes
+                            {
+                                AttributeName = field.Key,
+                                AttributeValue = field.Value.Content ?? "",
+                                Position = positionDataList,
+                                IsAttributeMapped = false
+                            };
+
+                            // Check if the field is a list (e.g., items array in the invoice)
+                            if (field.Value.FieldType == DocumentFieldType.List && field.Value.Value.AsList() != null)
+                            {
+                                attribute.Children = new List<Attributes>();
+
+                                // Loop over each item in the list
+                                foreach (var listItem in field.Value.Value.AsList())
+                                {
+                                    if (listItem.FieldType == DocumentFieldType.Dictionary && listItem.Value.AsDictionary() != null)
+                                    {
+                                        var childAttributes = new Attributes { Children = new List<Attributes>() };
+
+                                        // Loop over each key-value pair in the dictionary item
+                                        foreach (var itemField in listItem.Value.AsDictionary())
+                                        {
+                                            List<PositionData> childPositionDataList = new();
+                                            if (itemField.Value.BoundingRegions != null)
+                                            {
+                                                foreach (var childRegion in itemField.Value.BoundingRegions)
+                                                {
+                                                    var childPage = result.Pages.FirstOrDefault(p => p.PageNumber == childRegion.PageNumber);
+                                                    if (childPage != null)
+                                                    {
+                                                        var childPageWidth = childPage.Width;
+                                                        var childPageHeight = childPage.Height;
+
+                                                        childPositionDataList.Add(new PositionData
+                                                        {
+                                                            PageIndex = childRegion.PageNumber - 1,
+                                                            Left = childRegion.BoundingPolygon.Min(point => point.X) / childPageWidth * 100,
+                                                            Top = childRegion.BoundingPolygon.Min(point => point.Y) / childPageHeight * 100,
+                                                            Width = (childRegion.BoundingPolygon.Max(point => point.X) - childRegion.BoundingPolygon.Min(point => point.X)) / childPageWidth * 100,
+                                                            Height = (childRegion.BoundingPolygon.Max(point => point.Y) - childRegion.BoundingPolygon.Min(point => point.Y)) / childPageHeight * 100
+                                                        });
+                                                    }
+                                                }
+                                            }
+
+                                            childAttributes.Children.Add(new Attributes
+                                            {
+                                                AttributeName = itemField.Key,
+                                                AttributeValue = itemField.Value.Content ?? "",
+                                                Position = childPositionDataList,
+                                                IsAttributeMapped = false
+                                            });
+                                        }
+                                        attribute.Children.Add(childAttributes);
+                                    }
+                                }
+                            }
+
+                            attributesList.Add(attribute);
                         }
                     }
 
-                    return invoiceResult;
-                }
 
+                    return attributesList;
+                }
             }
             catch (Exception ex)
             {
                 throw;
             }
-
         }
+
+        private List<PositionData> GetPositionData(IReadOnlyList<BoundingRegion>? boundingRegions, float? pageWidth, float? pageHeight)
+        {
+            if (boundingRegions == null)
+            {
+                return new List<PositionData>();
+            }
+
+            return boundingRegions.Select(region =>
+            {
+                var xCoordinates = region.BoundingPolygon.Select(point => point.X).ToList();
+                var yCoordinates = region.BoundingPolygon.Select(point => point.Y).ToList();
+
+                return new PositionData
+                {
+                    PageIndex = region.PageNumber - 1,
+                    Left = (double)xCoordinates.Min() / pageWidth * 100,
+                    Top = (double)yCoordinates.Min() / pageHeight * 100,
+                    Width = (double)(xCoordinates.Max() - xCoordinates.Min()) / pageWidth * 100,
+                    Height = (double)(yCoordinates.Max() - yCoordinates.Min()) / pageHeight * 100
+                };
+
+
+            }).ToList();
+        }
+
+
+
 
         private string ConvertFileToBase64(IFormFile file)
         {
@@ -370,49 +335,50 @@ namespace VizInvoiceGeneratorWebAPI.Services
             }
 
             // Populate the HTML template with the invoice data
-            var customInvoiceHtml = PopulateHtmlTemplate(templateList[0]?.Template, invoice);
+            // var customInvoiceHtml = PopulateHtmlTemplate(templateList[0]?.Template, invoice);
 
             // Convert the populated HTML to PDF and return the PDF stream
-            var pdfStream = ConvertHtmlToPdf(customInvoiceHtml);
+            //var pdfStream = ConvertHtmlToPdf(customInvoiceHtml);
 
-            return pdfStream;
+            // return pdfStream;
+            return null;
         }
 
-        private string PopulateHtmlTemplate(string template, Invoice invoice)
-        {
-            string populatedHtml = template
-                .Replace("{{GSTIN}}", invoice.InvoiceResult.VendorTaxId) // Example placeholder for GSTIN
-                .Replace("{{VENDORNAME}}", invoice.InvoiceResult.VendorName)
-                .Replace("{{VENDORADDRESS}}", invoice.InvoiceResult.VendorAddress)
-                .Replace("{{INVOICENO}}", invoice.InvoiceResult.InvoiceId)
-                .Replace("{{INVOICEDATE}}", invoice.InvoiceResult.InvoiceDate)
-                .Replace("{{PONO}}", invoice.InvoiceResult.PurchaseOrder)
-                .Replace("{{DATE}}", invoice.InvoiceResult.PurchaseOrderDate)
-                .Replace("{{CUSTOMERNAME}}", invoice.InvoiceResult.CustomerAddressRecipient ?? invoice.InvoiceResult.ShippingAddressRecipient)
-                .Replace("{{CUSTOMERADDRESS}}", invoice.InvoiceResult.CustomerAddress ?? invoice.InvoiceResult.ShippingAddress)
-                .Replace("{{TOTAL}}", invoice.InvoiceResult.InvoiceTotal)
-                .Replace("{{INVOICETOTALINWORDS}}", invoice.InvoiceResult.InvoiceTotalInWords);
+        //private string PopulateHtmlTemplate(string template, Invoice invoice)
+        //{
+        //    string populatedHtml = template
+        //        .Replace("{{GSTIN}}", invoice.InvoiceResult.VendorTaxId) // Example placeholder for GSTIN
+        //        .Replace("{{VENDORNAME}}", invoice.InvoiceResult.VendorName)
+        //        .Replace("{{VENDORADDRESS}}", invoice.InvoiceResult.VendorAddress)
+        //        .Replace("{{INVOICENO}}", invoice.InvoiceResult.InvoiceId)
+        //        .Replace("{{INVOICEDATE}}", invoice.InvoiceResult.InvoiceDate)
+        //        .Replace("{{PONO}}", invoice.InvoiceResult.PurchaseOrder)
+        //        .Replace("{{DATE}}", invoice.InvoiceResult.PurchaseOrderDate)
+        //        .Replace("{{CUSTOMERNAME}}", invoice.InvoiceResult.CustomerAddressRecipient ?? invoice.InvoiceResult.ShippingAddressRecipient)
+        //        .Replace("{{CUSTOMERADDRESS}}", invoice.InvoiceResult.CustomerAddress ?? invoice.InvoiceResult.ShippingAddress)
+        //        .Replace("{{TOTAL}}", invoice.InvoiceResult.InvoiceTotal)
+        //        .Replace("{{INVOICETOTALINWORDS}}", invoice.InvoiceResult.InvoiceTotalInWords);
 
-            StringBuilder tableRows = new StringBuilder();
-            foreach (var detail in invoice.InvoiceResult.Items)
-            {
-                tableRows.Append($@"
-                    <tr style='height:26.4pt;'>
-                        <td style='width: 76px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
-                        <td style='width: 96px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
-                        <td colspan='2' style='width: 303px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'>{detail.Description}</td>
-                        <td style='width: 50px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.ProductCode:N2}</td>
-                        <td style='width: 44px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Quantity:N2}</td>
-                        <td style='width: 39px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Unit:N2}</td>
-                        <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.UnitPrice:N2}</td>
-                        <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Amount:N2}</td>
-                    </tr>");
-            }
+        //    StringBuilder tableRows = new StringBuilder();
+        //    foreach (var detail in invoice.InvoiceResult.Items)
+        //    {
+        //        tableRows.Append($@"
+        //            <tr style='height:26.4pt;'>
+        //                <td style='width: 76px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
+        //                <td style='width: 96px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
+        //                <td colspan='2' style='width: 303px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'>{detail.Description}</td>
+        //                <td style='width: 50px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.ProductCode:N2}</td>
+        //                <td style='width: 44px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Quantity:N2}</td>
+        //                <td style='width: 39px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Unit:N2}</td>
+        //                <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.UnitPrice:N2}</td>
+        //                <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Amount:N2}</td>
+        //            </tr>");
+        //    }
 
-            populatedHtml = populatedHtml.Replace("{{TableRows}}", tableRows.ToString());
+        //    populatedHtml = populatedHtml.Replace("{{TableRows}}", tableRows.ToString());
 
-            return populatedHtml;
-        }
+        //    return populatedHtml;
+        //}
 
         private MemoryStream ConvertHtmlToPdf(string htmlContent)
         {

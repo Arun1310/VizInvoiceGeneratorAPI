@@ -47,7 +47,7 @@ namespace VizInvoiceGeneratorWebAPI.Controllers
             }
 
             // Update the invoice fields with new data
-            invoice.InvoiceResult = updatedInvoice.InvoiceResult;
+           // invoice.InvoiceResult = updatedInvoice.InvoiceResult;
             invoice.State = updatedInvoice.State;
             invoice.CustomGeneratedInvoiceUrl = updatedInvoice.CustomGeneratedInvoiceUrl;
 
