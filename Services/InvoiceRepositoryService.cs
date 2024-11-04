@@ -52,8 +52,16 @@ namespace VizInvoiceGeneratorWebAPI.Services
 
         public async Task<bool> UpdateInvoice(string id, Invoice updatedInvoice)
         {
-            var result = await _invoices.ReplaceOneAsync(i => i.Id == id, updatedInvoice);
-            return result.IsAcknowledged && result.ModifiedCount > 0;
+            try
+            {
+                var result = await _invoices.ReplaceOneAsync(i => i.Id == id, updatedInvoice);
+                return result.IsAcknowledged && result.ModifiedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+
         }
 
         public async Task<Invoice> UploadInvoiceAsync(IFormFile file)
@@ -335,50 +343,119 @@ namespace VizInvoiceGeneratorWebAPI.Services
             }
 
             // Populate the HTML template with the invoice data
-            // var customInvoiceHtml = PopulateHtmlTemplate(templateList[0]?.Template, invoice);
+             var customInvoiceHtml = PopulateHtmlTemplate(templateList[0]?.Template, invoice);
 
             // Convert the populated HTML to PDF and return the PDF stream
-            //var pdfStream = ConvertHtmlToPdf(customInvoiceHtml);
+            var pdfStream = ConvertHtmlToPdf(customInvoiceHtml);
 
-            // return pdfStream;
-            return null;
+            return pdfStream;
         }
 
-        //private string PopulateHtmlTemplate(string template, Invoice invoice)
-        //{
-        //    string populatedHtml = template
-        //        .Replace("{{GSTIN}}", invoice.InvoiceResult.VendorTaxId) // Example placeholder for GSTIN
-        //        .Replace("{{VENDORNAME}}", invoice.InvoiceResult.VendorName)
-        //        .Replace("{{VENDORADDRESS}}", invoice.InvoiceResult.VendorAddress)
-        //        .Replace("{{INVOICENO}}", invoice.InvoiceResult.InvoiceId)
-        //        .Replace("{{INVOICEDATE}}", invoice.InvoiceResult.InvoiceDate)
-        //        .Replace("{{PONO}}", invoice.InvoiceResult.PurchaseOrder)
-        //        .Replace("{{DATE}}", invoice.InvoiceResult.PurchaseOrderDate)
-        //        .Replace("{{CUSTOMERNAME}}", invoice.InvoiceResult.CustomerAddressRecipient ?? invoice.InvoiceResult.ShippingAddressRecipient)
-        //        .Replace("{{CUSTOMERADDRESS}}", invoice.InvoiceResult.CustomerAddress ?? invoice.InvoiceResult.ShippingAddress)
-        //        .Replace("{{TOTAL}}", invoice.InvoiceResult.InvoiceTotal)
-        //        .Replace("{{INVOICETOTALINWORDS}}", invoice.InvoiceResult.InvoiceTotalInWords);
+        private string PopulateHtmlTemplate(string template, Invoice invoice)
+        {
+            string populatedHtml = template;
 
-        //    StringBuilder tableRows = new StringBuilder();
-        //    foreach (var detail in invoice.InvoiceResult.Items)
-        //    {
-        //        tableRows.Append($@"
-        //            <tr style='height:26.4pt;'>
-        //                <td style='width: 76px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
-        //                <td style='width: 96px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
-        //                <td colspan='2' style='width: 303px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'>{detail.Description}</td>
-        //                <td style='width: 50px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.ProductCode:N2}</td>
-        //                <td style='width: 44px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Quantity:N2}</td>
-        //                <td style='width: 39px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Unit:N2}</td>
-        //                <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.UnitPrice:N2}</td>
-        //                <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{detail.Amount:N2}</td>
-        //            </tr>");
-        //    }
+            // Check if Attributes is not null and has items
+            if (invoice.Attributes != null && invoice.Attributes.Any())
+            {
+                foreach (var attribute in invoice.Attributes)
+                {
+                    switch (attribute.AttributeName)
+                    {
+                        case "VendorTaxId":
+                            populatedHtml = populatedHtml.Replace("{{GSTIN}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "VendorName":
+                            populatedHtml = populatedHtml.Replace("{{VENDORNAME}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "VendorAddress":
+                            populatedHtml = populatedHtml.Replace("{{VENDORADDRESS}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "InvoiceId":
+                            populatedHtml = populatedHtml.Replace("{{INVOICENO}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "InvoiceDate":
+                            populatedHtml = populatedHtml.Replace("{{INVOICEDATE}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "PurchaseOrder":
+                            populatedHtml = populatedHtml.Replace("{{PONO}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "PurchaseOrderDate":
+                            populatedHtml = populatedHtml.Replace("{{DATE}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "CustomerAddressRecipient":
+                        case "ShippingAddressRecipient":
+                            populatedHtml = populatedHtml.Replace("{{CUSTOMERNAME}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "CustomerAddress":
+                        case "ShippingAddress":
+                            populatedHtml = populatedHtml.Replace("{{CUSTOMERADDRESS}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "InvoiceTotal":
+                            populatedHtml = populatedHtml.Replace("{{TOTAL}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "InvoiceTotalInWords":
+                            populatedHtml = populatedHtml.Replace("{{INVOICETOTALINWORDS}}", attribute.AttributeValue ?? string.Empty);
+                            break;
+                        case "Items":
+                            StringBuilder tableRows = new StringBuilder();
+                            if (attribute.Children != null && attribute.Children.Any())
+                            {
+                                foreach (var detail in attribute.Children)
+                                {
+                                    string description = string.Empty;
+                                    string productCode = string.Empty;
+                                    string quantity = string.Empty;
+                                    string unit = string.Empty;
+                                    string unitPrice = string.Empty;
+                                    string amount = string.Empty;
 
-        //    populatedHtml = populatedHtml.Replace("{{TableRows}}", tableRows.ToString());
+                                    foreach (var itemAttribute in detail.Children)
+                                    {
+                                        switch (itemAttribute.AttributeName)
+                                        {
+                                            case "Description":
+                                                description = itemAttribute.AttributeValue ?? string.Empty;
+                                                break;
+                                            case "ProductCode":
+                                                productCode = itemAttribute.AttributeValue ?? string.Empty;
+                                                break;
+                                            case "Quantity":
+                                                quantity = itemAttribute.AttributeValue ?? string.Empty;
+                                                break;
+                                            case "Unit":
+                                                unit = itemAttribute.AttributeValue ?? string.Empty;
+                                                break;
+                                            case "UnitPrice":
+                                                unitPrice = itemAttribute.AttributeValue ?? string.Empty;
+                                                break;
+                                            case "Amount":
+                                                amount = itemAttribute.AttributeValue ?? string.Empty;
+                                                break;
+                                        }
+                                    }
+                                    tableRows.Append($@"
+                                        <tr style='height:26.4pt;'>
+                                            <td style='width: 76px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
+                                            <td style='width: 96px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'></td>
+                                            <td colspan='2' style='width: 303px; border: 1.5pt solid black; padding: 1.6pt 1.2pt 0in 1.25pt;'>{description}</td>
+                                            <td style='width: 50px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{productCode}</td>
+                                            <td style='width: 44px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{quantity}</td>
+                                            <td style='width: 39px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{unit}</td>
+                                            <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{unitPrice}</td>
+                                            <td style='width: 74px; border: 1.5pt solid black; padding: 1.6pt 8px; text-align: center;'>{amount}</td>
+                                        </tr>");
+                                }
+                            }
+                            populatedHtml = populatedHtml.Replace("{{TableRows}}", tableRows.ToString());
+                            break;
 
-        //    return populatedHtml;
-        //}
+                    }
+                }
+            }
+
+            return populatedHtml;
+        }
 
         private MemoryStream ConvertHtmlToPdf(string htmlContent)
         {
