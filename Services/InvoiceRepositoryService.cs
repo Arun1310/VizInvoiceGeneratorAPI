@@ -55,7 +55,7 @@ namespace VizInvoiceGeneratorWebAPI.Services
             try
             {
                 var result = await _invoices.ReplaceOneAsync(i => i.Id == id, updatedInvoice);
-                return result.IsAcknowledged && result.ModifiedCount > 0;
+                return result.IsAcknowledged && (result.ModifiedCount > 0 || result.MatchedCount > 0);
             }
             catch (Exception ex)
             {
@@ -117,7 +117,7 @@ namespace VizInvoiceGeneratorWebAPI.Services
 
                 var invoice = await GetInvoiceById(id);
 
-                invoice.State = 3;
+                invoice.State = 4;
                 invoice.CustomGeneratedInvoiceUrl = uploadedFile.FilePath;
 
                 var result = await UpdateInvoice(id, invoice);
